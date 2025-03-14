@@ -160,7 +160,6 @@ def update_state(state, a, omega):
 def get_nparray_from_matrix(x):
     return np.array(x).flatten()
 
-
 def calc_nearest_index(state, cx, cy, cyaw, pind):
 
     dx = [state.x - icx for icx in cx[pind:(pind + N_IND_SEARCH)]]
@@ -182,7 +181,6 @@ def calc_nearest_index(state, cx, cy, cyaw, pind):
         mind *= -1
 
     return ind, mind
-
 
 def predict_motion(x0, oa, oomega, xref):
     """
@@ -246,7 +244,6 @@ def iterative_linear_mpc_control(xref, x0, dref, oa, oomega):
 
     return oa, oomega, ox, oy, oyaw, ov
 
-
 def linear_mpc_control(xref, xbar, x0, oa, oomega):
     """
     선속도와 각속도를 사용하는 DD 모델용 선형 MPC 컨트롤러
@@ -306,7 +303,6 @@ def linear_mpc_control(xref, xbar, x0, oa, oomega):
 
     return oa, oomega, ox, oy, oyaw, ov
 
-
 def calc_ref_trajectory(state, cx, cy, cyaw, ck, sp, dl, pind):
     xref = np.zeros((NX, T + 1))
     dref = np.zeros((1, T + 1))  # 각속도(omega) 참조 값
@@ -342,7 +338,6 @@ def calc_ref_trajectory(state, cx, cy, cyaw, ck, sp, dl, pind):
 
     return xref, ind, dref
 
-
 def check_goal(state, goal, tind, nind):
 
     # check goal
@@ -361,7 +356,6 @@ def check_goal(state, goal, tind, nind):
         return True
 
     return False
-
 
 def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
     """
@@ -497,7 +491,6 @@ def calc_speed_profile(cx, cy, cyaw, target_speed):
 
     return speed_profile
 
-
 def smooth_yaw(yaw):
 
     for i in range(len(yaw) - 1):
@@ -569,7 +562,6 @@ def get_sin_course(dl, length=50.0, amplitude=5.0):
     
     return x, y, yaw, curvature
 
-
 def main():
     print(__file__ + " start!!")
     start = time.time()
@@ -609,152 +601,11 @@ def main():
 
         plt.show()
 
-
 if __name__ == '__main__':
     main()
-#cx, cy, cyaw, ck = get_straight_course(dl)
+    #cx, cy, cyaw, ck = get_straight_course(dl)
     #cx, cy, cyaw, ck = get_straight_course3(dl)
     #cx, cy, cyaw, ck = get_forward_course(dl)
-'''
-def iterative_linear_mpc_control(xref, x0, dref, oa, oomega):
-    ox, oy, oyaw, ov = None, None, None, None
-
-    if oa is None or oomega is None:
-        oa = [0.0] * T
-        oomega = [0.0] * T  # 조향각 대신 각속도 초기화
-
-    for i in range(MAX_ITER):
-        xbar = predict_motion(x0, oa, oomega, xref)
-        poa, poomega = oa[:], oomega[:]  # 이전 입력 저장
-        oa, oomega, ox, oy, oyaw, ov = linear_mpc_control(xref, xbar, x0)
-
-        du = sum(abs(oa - poa)) + sum(abs(oomega - poomega))  # 입력 변화량 계산
-        if du <= DU_TH:
-            break
-    else:
-        print("Iterative is max iter")
-
-    return oa, oomega, ox, oy, oyaw, ov
-'''
-
-'''
-def linear_mpc_control(xref, xbar, x0):
-    """
-    linear mpc control
-
-    xref: reference point
-    xbar: operational point
-    x0: initial state
-    dref: reference steer angle
-    """
-    x = cvxpy.Variable((NX, T + 1))
-    u = cvxpy.Variable((NU, T))
-
-    cost = 0.0
-    constraints = []
-
-    for t in range(T):
-        cost += cvxpy.quad_form(u[:, t], R)
-
-        if t != 0:
-            cost += cvxpy.quad_form(xref[:, t] - x[:, t], Q)
-
-        # DD 모델에 맞는 선형 모델 행렬을 계산
-        A, B, C = get_linear_model_matrix(
-            xbar[2, t], xbar[3, t]
-        )
-        constraints += [x[:, t + 1] == A @ x[:, t] + B @ u[:, t] + C]
-
-        if t < (T - 1):
-            cost += cvxpy.quad_form(u[:, t + 1] - u[:, t], Rd)
-            constraints += [cvxpy.abs(u[1, t + 1] - u[1, t]) <= MAX_DOMEGA * DT]  # 각속도 변화 제한
-
-    cost += cvxpy.quad_form(xref[:, T] - x[:, T], Qf)
-
-    constraints += [x[:, 0] == x0]
-    constraints += [x[2, :] <= MAX_SPEED]
-    constraints += [x[2, :] >= MIN_SPEED]
-    constraints += [cvxpy.abs(u[0, :]) <= MAX_ACCEL]
-    constraints += [cvxpy.abs(u[1, :]) <= MAX_OMEGA]  # 각속도 제한 적용
-
-    prob = cvxpy.Problem(cvxpy.Minimize(cost), constraints)
-    prob.solve(solver=cvxpy.CLARABEL, verbose=False)
-
-    if prob.status == cvxpy.OPTIMAL or prob.status == cvxpy.OPTIMAL_INACCURATE:
-        ox = get_nparray_from_matrix(x.value[0, :])
-        oy = get_nparray_from_matrix(x.value[1, :])
-        ov = get_nparray_from_matrix(x.value[2, :])
-        oyaw = get_nparray_from_matrix(x.value[3, :])
-        oa = get_nparray_from_matrix(u.value[0, :])
-        oomega = get_nparray_from_matrix(u.value[1, :])  # 조향각 대신 각속도 출력
-
-    else:
-        print("Error: Cannot solve MPC..")
-        oa, oomega, ox, oy, oyaw, ov = None, None, None, None, None, None
-
-    return oa, oomega, ox, oy, oyaw, ov
-'''
-
-'''
-def get_linear_model_matrix(v, theta):
-    A = np.zeros((NX, NX))
-    A[0, 0] = 1.0
-    A[1, 1] = 1.0
-    A[2, 2] = 1.0
-    A[3, 3] = 1.0
-    A[0, 2] = -DT * v * math.sin(theta)
-    A[1, 2] = DT * v * math.cos(theta)
-
-    B = np.zeros((NX, NU))
-    B[0, 0] = DT * math.cos(theta)
-    B[1, 0] = DT * math.sin(theta)
-    B[2, 1] = DT
-    B[3, 0] = DT
-
-    C = np.zeros(NX)
-    C[0] = -DT * v * math.sin(theta) * theta
-    C[1] = DT * v * math.cos(theta) * theta
-
-    return A, B, C
-'''
-
-'''
-def calc_ref_trajectory(state, cx, cy, cyaw, ck, sp, dl, pind):
-    xref = np.zeros((NX, T + 1))
-    dref = np.zeros((1, T + 1))  # 각속도(omega) 참조 값
-    ncourse = len(cx)
-
-    ind, _ = calc_nearest_index(state, cx, cy, cyaw, pind)
-    if pind >= ind:
-        ind = pind
-
-    xref[0, 0] = cx[ind]
-    xref[1, 0] = cy[ind]
-    xref[2, 0] = sp[ind]
-    xref[3, 0] = cyaw[ind]  # yaw 값 유지
-    dref[0, 0] = 0.0  # 각속도 기본값 설정
-
-    travel = 0.0
-    for i in range(T + 1):
-        travel += abs(state.v) * DT
-        dind = int(round(travel / dl))
-
-        if (ind + dind) < ncourse:
-            xref[0, i] = cx[ind + dind]
-            xref[1, i] = cy[ind + dind]
-            xref[2, i] = sp[ind + dind]
-            xref[3, i] = cyaw[ind + dind]
-            dref[0, i] = (cyaw[ind + dind] - cyaw[ind]) / DT  # 각속도 계산
-        else:
-            xref[0, i] = cx[ncourse - 1]
-            xref[1, i] = cy[ncourse - 1]
-            xref[2, i] = sp[ncourse - 1]
-            xref[3, i] = cyaw[ncourse - 1]
-            dref[0, i] = 0.0
-
-    return xref, ind, dref
-'''
-
 '''
 def calc_speed_profile(cx, cy, cyaw, target_speed):
 

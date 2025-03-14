@@ -7,6 +7,7 @@ import sys
 import pathlib
 sys.path.append(str(pathlib.Path(__file__).parent.parent.parent))
 
+
 from lib.angle import angle_mod
 
 from lib import cubic_spline_planner
@@ -61,7 +62,7 @@ MIN_SPEED = -15  # minimum speed [m/s]
 MAX_ACCEL = 3.0  # maximum accel [m/ss]
 
 MAX_OMEGA = 3.0  # 최대 각속도 [rad/s]
-MAX_DOMEGA = 20.0 # 각속도 변화 제한
+MAX_DOMEGA = 2.0 # 각속도 변화 제한
 
 show_animation = True
 
@@ -157,7 +158,6 @@ def update_state(state, v_input, omega):
 def get_nparray_from_matrix(x):
     return np.array(x).flatten()
 
-
 def calc_nearest_index(state, cx, cy, cyaw, pind):
 
     dx = [state.x - icx for icx in cx[pind:(pind + N_IND_SEARCH)]]
@@ -179,7 +179,6 @@ def calc_nearest_index(state, cx, cy, cyaw, pind):
         mind *= -1
 
     return ind, mind
-
 
 def predict_motion(x0, v_input, oomega, xref):
     """
@@ -243,7 +242,6 @@ def iterative_linear_mpc_control(xref, x0, dref, v_input, oomega):
 
     return v_input, oomega, ox, oy, oyaw, ov
 
-
 def linear_mpc_control(xref, xbar, x0, v_input, oomega):
     """
     속도(v_input)와 각속도(oomega)를 사용하는 DD 모델용 선형 MPC 컨트롤러
@@ -304,7 +302,6 @@ def linear_mpc_control(xref, xbar, x0, v_input, oomega):
 
     return v_input, oomega, ox, oy, oyaw, ov
 
-
 def calc_ref_trajectory(state, cx, cy, cyaw, ck, sp, dl, pind):
     xref = np.zeros((NX, T + 1))
     dref = np.zeros((1, T + 1))  # 각속도(omega) 참조 값
@@ -340,7 +337,6 @@ def calc_ref_trajectory(state, cx, cy, cyaw, ck, sp, dl, pind):
 
     return xref, ind, dref
 
-
 def check_goal(state, goal, tind, nind):
 
     # check goal
@@ -359,7 +355,6 @@ def check_goal(state, goal, tind, nind):
         return True
 
     return False
-
 
 def do_simulation(cx, cy, cyaw, ck, sp, dl, initial_state):
     """
@@ -495,7 +490,6 @@ def calc_speed_profile(cx, cy, cyaw, target_speed):
 
     return speed_profile
 
-
 def smooth_yaw(yaw):
 
     for i in range(len(yaw) - 1):
@@ -528,12 +522,42 @@ def get_switch_back_course(dl):
 
     return cx, cy, cyaw, ck
 
+def get_sin_course(dl, length=50.0, amplitude=5.0):
+    """
+    Sine 형태의 경로 생성
+    :param dl: 경로의 샘플링 간격 (단위: m)
+    :param length: 경로의 총 길이
+    :param amplitude: 사인 곡선의 진폭
+    :return: x, y, yaw, curvature
+    """
+    # 경로 길이에 맞는 x 값 생성 (0부터 length까지)
+    x = np.arange(0, length, dl)
+    # y 값은 sin 함수로 계산
+    y = amplitude * np.sin(x / length * 2 * np.pi)
+    
+    # yaw 값은 각도 계산 (tan의 아크를 이용해 경로의 기울기 추정)
+    yaw = np.arctan(np.gradient(y, x))  # y에 대한 x의 변화율을 기반으로 기울기 계산
+    
+    # 곡률 계산 (2차 미분을 이용한 계산)
+    curvature = np.gradient(yaw, x)
+    
+    return x, y, yaw, curvature
+
+def get_course(dl):
+    ax = [0.0, 10.0, 20.0, 30.0, 40.0, 50.0]
+    ay = [0.0, 5.0, -10.0, 15.0, -20.0, 0.0]
+    cx, cy, cyaw, ck, s = cubic_spline_planner.calc_spline_course(
+        ax, ay, ds=dl)
+
+    return cx, cy, cyaw, ck
+
 def main():
     print(__file__ + " start!!")
     start = time.time()
 
     dl = 1.0  # course tick
     cx, cy, cyaw, ck = get_switch_back_course(dl)
+    #cx, cy, cyaw, ck = get_course(dl)
 
     sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
 
@@ -563,7 +587,6 @@ def main():
         plt.ylabel("Speed [kmh]")
 
         plt.show()
-
 
 if __name__ == '__main__':
     main()
