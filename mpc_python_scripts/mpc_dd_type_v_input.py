@@ -26,7 +26,7 @@ Rd = np.diag([0.1, 0.001])  # input difference cost matrix
 #Rd[0,0] → 속도 변화 비용
 #Rd[1,1] → 각속도 변화 비용
 
-Q = np.diag([3.1, 3.1, 1, 9])  # state cost matrix
+Q = np.diag([1, 1, 1, 1])  # state cost matrix
 #Q[0,0] (x 위치 오차)
 #Q[1,1] (y 위치 오차)
 #Q[2,2] (속도 오차)
@@ -34,7 +34,7 @@ Q = np.diag([3.1, 3.1, 1, 9])  # state cost matrix
 #위치 오차의 비용을 증가시키면, 차량이 경로에서 벗어나는 것을 더 강하게 패널티로 부과
 
 Qf = Q  # state final matrix
-GOAL_DIS = 1.5  # goal distance
+GOAL_DIS = 5.5  # goal distance
 STOP_SPEED = 0.5 / 3.6  # stop speed
 MAX_TIME = 500.0  # max simulation time
 
@@ -44,7 +44,6 @@ MAX_ITER = 3
   # Max iteration
 DU_TH = 0.1  # iteration finish param
 
-TARGET_SPEED = 3  # [m/s] target speed
 N_IND_SEARCH = 10  # Search index number
 
 DT = 0.2  # [s] time tick
@@ -57,12 +56,13 @@ WHEEL_LEN = 0.3  # [m]
 WHEEL_WIDTH = 0.2  # [m]
 TREAD = 1  # [m]
 
-MAX_SPEED = 15  # maximum speed [m/s]
-MIN_SPEED = -15  # minimum speed [m/s]
-MAX_ACCEL = 3.0  # maximum accel [m/ss]
+TARGET_SPEED = 2  # 목표 속도 [m/s]
+MAX_SPEED = 2  # 최대 선속도 [m/s]
+MIN_SPEED = -2  # 최소 선속도 [m/s]
+MAX_ACCEL = 1.5  # 최대 선가속도 [m/ss]
 
-MAX_OMEGA = 3.0  # 최대 각속도 [rad/s]
-MAX_DOMEGA = 2.0 # 각속도 변화 제한
+MAX_OMEGA = 2.5  # 최대 각속도 [rad/s]
+MAX_ALPHA = 3.0 # 최대 각가속도 [rad/ss]
 
 show_animation = True
 
@@ -272,7 +272,7 @@ def linear_mpc_control(xref, xbar, x0, v_input, oomega):
         # 입력 변화량 제한 (속도와 각속도 변화)
         if t < (T - 1):
             cost += cvxpy.quad_form(u[:, t + 1] - u[:, t], Rd)
-            constraints += [cvxpy.abs(u[1, t + 1] - u[1, t]) <= MAX_DOMEGA * DT]  # 각속도 변화 제한
+            constraints += [cvxpy.abs(u[1, t + 1] - u[1, t]) <= MAX_ALPHA * DT]  # 각속도 변화 제한
             constraints += [cvxpy.abs(u[0, t + 1] - u[0, t]) <= MAX_ACCEL * DT]  # 속도 변화 제한
 
     cost += cvxpy.quad_form(xref[:, T] - x[:, T], Qf)  # 최종 상태 오차 비용
@@ -557,6 +557,7 @@ def main():
 
     dl = 1.0  # course tick
     cx, cy, cyaw, ck = get_switch_back_course(dl)
+    #cx, cy, cyaw, ck = get_sin_course(dl)
     #cx, cy, cyaw, ck = get_course(dl)
 
     sp = calc_speed_profile(cx, cy, cyaw, TARGET_SPEED)
@@ -571,22 +572,62 @@ def main():
 
     if show_animation:  # pragma: no cover
         plt.close("all")
-        plt.subplots()
-        plt.plot(cx, cy, "-r", label="spline")
-        plt.plot(x, y, "-g", label="tracking")
-        plt.grid(True)
-        plt.axis("equal")
-        plt.xlabel("x[m]")
-        plt.ylabel("y[m]")
-        plt.legend()
 
-        plt.subplots()
-        plt.plot(t, v, "-r", label="speed")
-        plt.grid(True)
-        plt.xlabel("Time [s]")
-        plt.ylabel("Speed [kmh]")
+        # 선가속도와 각가속도 계산
+        a_accel = np.diff(a) / DT  # Linear acceleration (m/s²)
+        d_accel = np.diff(d) / DT  # Angular acceleration (rad/s²)
+        t_accel = t[:-1]  # 시간 배열 조정 (diff 사용 시 길이가 하나 줄어듦)
 
+        # 📌 경로 그래프 (별도 창)
+        fig1, ax1 = plt.subplots(figsize=(8, 6))
+        ax1.plot(cx, cy, "-r", label="spline")
+        ax1.plot(x, y, "-g", label="tracking")
+        ax1.grid(True)
+        ax1.axis("equal")
+        ax1.set_xlabel("x [m]")
+        ax1.set_ylabel("y [m]")
+        ax1.legend()
+        ax1.set_title("Path Tracking")
+        plt.show(block=False)  # 창을 유지하면서 다음 그래프 실행
+
+        # 📌 속도 & 가속도 (한 창에 2x2)
+        fig2, axs = plt.subplots(2, 2, figsize=(10, 8))
+
+        # 선속도 (Linear Speed)
+        axs[0, 0].plot(t, v, "-r", label="Linear Speed")
+        axs[0, 0].grid(True)
+        axs[0, 0].set_xlabel("Time [s]")
+        axs[0, 0].set_ylabel("Speed [m/s]")
+        axs[0, 0].legend()
+        axs[0, 0].set_title("Linear Speed Profile")
+
+        # 각속도 (Angular Speed)
+        axs[0, 1].plot(t, d, "-b", label="Angular Speed")
+        axs[0, 1].grid(True)
+        axs[0, 1].set_xlabel("Time [s]")
+        axs[0, 1].set_ylabel("Angular Speed [rad/s]")
+        axs[0, 1].legend()
+        axs[0, 1].set_title("Angular Speed Profile")
+
+        # 선가속도 (Linear Acceleration)
+        axs[1, 0].plot(t_accel, a_accel, "-g", label="Linear Acceleration")
+        axs[1, 0].grid(True)
+        axs[1, 0].set_xlabel("Time [s]")
+        axs[1, 0].set_ylabel("Acceleration [m/s²]")
+        axs[1, 0].legend()
+        axs[1, 0].set_title("Linear Acceleration Profile")
+
+        # 각가속도 (Angular Acceleration)
+        axs[1, 1].plot(t_accel, d_accel, "-m", label="Angular Acceleration")
+        axs[1, 1].grid(True)
+        axs[1, 1].set_xlabel("Time [s]")
+        axs[1, 1].set_ylabel("Angular Acceleration [rad/s²]")
+        axs[1, 1].legend()
+        axs[1, 1].set_title("Angular Acceleration Profile")
+
+        plt.tight_layout()
         plt.show()
 
+        
 if __name__ == '__main__':
     main()
