@@ -83,8 +83,6 @@ bool CustomGlobalPlanner::checkObstacleNearPath(const std::vector<geometry_msgs:
 
                     min_obstacle_distance = std::min(min_obstacle_distance, dist);
                     found_obstacle = true;
-
-                    //ROS_INFO("Obstacle detected near path at (%d, %d), cost=%d", x, y, cost);
                 }
             }
         }
@@ -126,7 +124,8 @@ bool CustomGlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start,
     double obstacle_threshold = 254;
     double obstacle_check_radius = 0.4;
     double fallback_distance = 4.0;
-    double navfn_target_distance = 2.5;
+    double navfn_target_distance = 1.5;
+    double waypoint_reach_threshold = 1.55;  // waypoint 근접 거리 임계값 (m)
 
     double min_obstacle_distance;
     bool obstacle_exists = checkObstacleNearPath(external_plan_, obstacle_threshold, obstacle_check_radius, start, min_obstacle_distance);
@@ -142,13 +141,25 @@ bool CustomGlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start,
     }
 
     if (using_navfn && (!obstacle_exists || min_obstacle_distance > fallback_distance)) {
-        ROS_INFO("Obstacle cleared. reverting to topology path");
-        using_navfn = false;
+        // waypoint까지 거리 계산
+        geometry_msgs::PoseStamped navfn_goal = findDistantWaypoint(start, navfn_target_distance);
+
+        double dx = navfn_goal.pose.position.x - start.pose.position.x;
+        double dy = navfn_goal.pose.position.y - start.pose.position.y;
+        double dist_to_waypoint = std::hypot(dx, dy);
+
+        if (dist_to_waypoint <= waypoint_reach_threshold) {
+            ROS_INFO("Reached near waypoint (%.2f m). reverting to topology path", dist_to_waypoint);
+            using_navfn = false;
+        } else {
+            ROS_INFO("Waypoint is %.2f m away, continue using navfn", dist_to_waypoint);
+            return navfnFallback(start, navfn_goal, plan);
+        }
     }
 
     // 보간 수행
     plan.clear();
-    double interpolation_resolution = 0.025;
+    double interpolation_resolution = 0.02;
 
     for (size_t i = 0; i < external_plan_.size() - 1; ++i) {
         const auto& p1 = external_plan_[i];
