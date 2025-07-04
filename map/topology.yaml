@@ -1,0 +1,494 @@
+node_0:
+  edges:
+  - node_1
+  - node_24
+  position:
+  - -24.57446271810542
+  - -8.613307984066353
+  - 0.0
+node_1:
+  edges:
+  - node_2
+  - node_0
+  - node_23
+  position:
+  - -19.47078488333515
+  - -8.667602429117096
+  - 0.0
+node_10:
+  edges:
+  - node_52
+  - node_11
+  - node_9
+  position:
+  - 3.332882037978827
+  - 2.299875471133914
+  - 0.0
+node_11:
+  edges:
+  - node_10
+  position:
+  - 3.4414709280803137
+  - -1.9350912428243987
+  - 0.0
+node_12:
+  edges:
+  - node_13
+  - node_8
+  - node_6
+  - node_17
+  position:
+  - -3.562512483466122
+  - -3.3467468141438363
+  - 0.0
+node_13:
+  edges:
+  - node_14
+  - node_12
+  - node_16
+  - node_5
+  position:
+  - -6.385823626104987
+  - -3.2381579240423433
+  - 0.0
+node_14:
+  edges:
+  - node_15
+  - node_4
+  - node_13
+  position:
+  - -9.263429213794609
+  - -3.1838634789915945
+  - 0.0
+node_15:
+  edges:
+  - node_20
+  - node_14
+  - node_16
+  position:
+  - -9.263429213794609
+  - 2.2455810260831637
+  - 0.0
+node_16:
+  edges:
+  - node_15
+  - node_17
+  - node_13
+  position:
+  - -6.385823626104987
+  - 2.2455810260831637
+  - 0.0
+node_17:
+  edges:
+  - node_16
+  - node_9
+  - node_18
+  - node_12
+  position:
+  - -3.5082180384153645
+  - 2.136992135981666
+  - 0.0
+node_18:
+  edges:
+  - node_19
+  - node_17
+  position:
+  - -2.910979142857144
+  - 3.4400588171996116
+  - 0.0
+node_19:
+  edges:
+  - node_42
+  - node_18
+  - node_20
+  - node_53
+  position:
+  - -2.910979142857144
+  - 4.906008833569798
+  - 0.0
+node_2:
+  edges:
+  - node_3
+  - node_1
+  - node_22
+  position:
+  - -15.724468174833568
+  - -8.613307984066353
+  - 0.0
+node_20:
+  edges:
+  - node_21
+  - node_40
+  - node_15
+  - node_19
+  position:
+  - -9.100545878642368
+  - 5.23177550387428
+  - 0.0
+node_21:
+  edges:
+  - node_28
+  - node_22
+  - node_20
+  - node_3
+  position:
+  - -12.35821258168722
+  - 5.177481058823535
+  - 0.0
+node_22:
+  edges:
+  - node_27
+  - node_23
+  - node_21
+  - node_2
+  position:
+  - -15.724468174833568
+  - 5.340364393975776
+  - 0.0
+node_23:
+  edges:
+  - node_26
+  - node_24
+  - node_22
+  - node_1
+  position:
+  - -19.633668218487394
+  - 5.068892168722039
+  - 0.0
+node_24:
+  edges:
+  - node_0
+  - node_25
+  - node_23
+  position:
+  - -24.84593494335916
+  - 5.123186613772788
+  - 0.0
+node_25:
+  edges:
+  - node_24
+  - node_43
+  - node_26
+  position:
+  - -24.683051608206917
+  - 18.805386766561178
+  - 0.0
+node_26:
+  edges:
+  - node_25
+  - node_27
+  - node_44
+  - node_23
+  position:
+  - -19.742257108588888
+  - 19.022564546764166
+  - 0.0
+node_27:
+  edges:
+  - node_26
+  - node_28
+  - node_45
+  - node_22
+  position:
+  - -15.94164595503656
+  - 19.022564546764166
+  - 0.0
+node_28:
+  edges:
+  - node_27
+  - node_29
+  - node_46
+  - node_21
+  position:
+  - -12.41250702673797
+  - 19.022564546764166
+  - 0.0
+node_29:
+  edges:
+  - node_28
+  - node_32
+  - node_31
+  - node_38
+  position:
+  - -9.263429213794609
+  - 19.348331217068655
+  - 0.0
+node_3:
+  edges:
+  - node_4
+  - node_2
+  - node_21
+  position:
+  - -12.683979251991705
+  - -8.613307984066353
+  - 0.0
+node_30:
+  edges:
+  - node_31
+  - node_33
+  - node_35
+  - node_37
+  position:
+  - -3.1281569230601285
+  - 19.674097887373136
+  - 0.0
+node_31:
+  edges:
+  - node_29
+  - node_30
+  position:
+  - -8.123245867728912
+  - 19.728392332423887
+  - 0.0
+node_32:
+  edges:
+  - node_29
+  - node_47
+  - node_33
+  position:
+  - -9.100545878642368
+  - 23.420414595874718
+  - 0.0
+node_33:
+  edges:
+  - node_32
+  - node_34
+  - node_48
+  - node_30
+  position:
+  - -3.1824513681108826
+  - 23.52900348597622
+  - 0.0
+node_34:
+  edges:
+  - node_49
+  - node_35
+  - node_33
+  position:
+  - 4.798832054349006
+  - 23.420414595874718
+  - 0.0
+node_35:
+  edges:
+  - node_34
+  - node_36
+  - node_30
+  position:
+  - 4.853126499399757
+  - 19.728392332423887
+  - 0.0
+node_36:
+  edges:
+  - node_35
+  - node_50
+  - node_37
+  position:
+  - 4.798832054349006
+  - 16.03637006897305
+  - 0.0
+node_37:
+  edges:
+  - node_38
+  - node_36
+  - node_30
+  - node_41
+  position:
+  - -3.1281569230601285
+  - 15.81919228877006
+  - 0.0
+node_38:
+  edges:
+  - node_29
+  - node_37
+  - node_39
+  position:
+  - -9.154840323693112
+  - 15.710603398668566
+  - 0.0
+node_39:
+  edges:
+  - node_38
+  - node_40
+  - node_41
+  position:
+  - -9.209134768743862
+  - 12.181464470369969
+  - 0.0
+node_4:
+  edges:
+  - node_5
+  - node_3
+  - node_14
+  position:
+  - -9.4806069939976
+  - -8.613307984066353
+  - 0.0
+node_40:
+  edges:
+  - node_39
+  - node_20
+  - node_42
+  position:
+  - -9.046251433591621
+  - 8.543736651969882
+  - 0.0
+node_41:
+  edges:
+  - node_39
+  - node_50
+  - node_37
+  - node_42
+  position:
+  - -3.1281569230601285
+  - 11.964286690166984
+  - 0.0
+node_42:
+  edges:
+  - node_40
+  - node_51
+  - node_41
+  - node_19
+  position:
+  - -3.073862478009385
+  - 8.38085331681764
+  - 0.0
+node_43:
+  edges:
+  - node_44
+  - node_25
+  position:
+  - -24.62875716315617
+  - 28.686975765797236
+  - 0.0
+node_44:
+  edges:
+  - node_43
+  - node_45
+  - node_26
+  position:
+  - -19.79655155363963
+  - 28.57838687569574
+  - 0.0
+node_45:
+  edges:
+  - node_44
+  - node_46
+  - node_27
+  position:
+  - -15.94164595503656
+  - 28.469797985594248
+  - 0.0
+node_46:
+  edges:
+  - node_45
+  - node_47
+  - node_28
+  position:
+  - -12.683979251991705
+  - 28.524092430645
+  - 0.0
+node_47:
+  edges:
+  - node_46
+  - node_48
+  - node_32
+  position:
+  - -9.263429213794609
+  - 28.741270210847986
+  - 0.0
+node_48:
+  edges:
+  - node_47
+  - node_49
+  - node_33
+  position:
+  - -2.910979142857144
+  - 28.524092430645
+  - 0.0
+node_49:
+  edges:
+  - node_48
+  - node_34
+  position:
+  - 4.635948719196762
+  - 28.19832576034051
+  - 0.0
+node_5:
+  edges:
+  - node_6
+  - node_4
+  - node_13
+  position:
+  - -6.548706961257235
+  - -8.667602429117096
+  - 0.0
+node_50:
+  edges:
+  - node_36
+  - node_51
+  - node_41
+  position:
+  - 4.744537609298263
+  - 12.290053360471466
+  - 0.0
+node_51:
+  edges:
+  - node_50
+  - node_53
+  - node_42
+  position:
+  - 4.798832054349006
+  - 8.489442206919138
+  - 0.0
+node_52:
+  edges:
+  - node_53
+  - node_10
+  position:
+  - 4.9074209444505
+  - 2.354169916184663
+  - 0.0
+node_53:
+  edges:
+  - node_51
+  - node_52
+  - node_19
+  position:
+  - 4.853126499399757
+  - 5.014597723671292
+  - 0.0
+node_6:
+  edges:
+  - node_7
+  - node_5
+  - node_12
+  position:
+  - -3.3453347032631235
+  - -8.667602429117096
+  - 0.0
+node_7:
+  edges:
+  - node_8
+  - node_6
+  position:
+  - -0.3591402254720073
+  - -8.667602429117096
+  - 0.0
+node_8:
+  edges:
+  - node_9
+  - node_7
+  - node_12
+  position:
+  - -0.46772911557350483
+  - -3.2924523690930867
+  - 0.0
+node_9:
+  edges:
+  - node_10
+  - node_8
+  - node_17
+  position:
+  - -0.5220235606242483
+  - 2.1912865810324202
+  - 0.0
