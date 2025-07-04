@@ -37,6 +37,23 @@ def point_line_segment_distance(px, py, x1, y1, x2, y2):
     return dist, (closest_x, closest_y)
 
 # ===========================
+# 📐 보간 함수: 점 사이 경로 생성
+# ===========================
+def interpolate_segment(x1, y1, yaw1, x2, y2, yaw2, resolution=0.05):
+    dist = math.hypot(x2 - x1, y2 - y1)
+    steps = max(int(dist / resolution), 1)
+    path = []
+
+    for i in range(steps + 1):
+        t = i / float(steps)
+        x = x1 + t * (x2 - x1)
+        y = y1 + t * (y2 - y1)
+        yaw = yaw1 + t * (yaw2 - yaw1)  # 간단 선형 보간
+
+        path.append({'position': [x, y, yaw]})
+    return path
+
+# ===========================
 # 🧠 그래프 로딩
 # ===========================
 def load_topology(yaml_path):
@@ -89,7 +106,6 @@ def publish_path_from_list(node_list, topic="/my_global_path", frame_id="map"):
 
         path_msg.poses.append(pose)
 
-    #rospy.loginfo(f"🚀 경로 {len(path_msg.poses)}개 노드로 publish")
     pub.publish(path_msg)
 
 # ===========================
@@ -117,7 +133,6 @@ def find_nearest_edge_point(graph, x, y):
     for node_name, node_data in graph.items():
         x1, y1, _ = node_data['position']
         for neighbor in node_data['edges']:
-            # 양쪽 노드 좌표
             neighbor_data = graph[neighbor]
             x2, y2, _ = neighbor_data['position']
 
@@ -132,7 +147,7 @@ def find_nearest_edge_point(graph, x, y):
 # ===========================
 # 🎯 목표 수신 콜백
 # ===========================
-goal_position = None  # 전역으로 목표 위치 저장
+goal_position = None
 
 def goal_callback(msg):
     global goal_position
@@ -157,53 +172,76 @@ def timer_callback(event):
         rospy.logerr(f"TF 오류: {e}")
         return
 
-    # 그래프 깊은 복사 (원본 훼손 방지)
     graph_mod = copy.deepcopy(graph)
 
-    # 현재 위치에 가장 가까운 엣지와 투영점 계산
-    nearest_edge, proj_point = find_nearest_edge_point(graph, robot_x, robot_y)
-    if nearest_edge is None:
+    # 1) 현재 위치 기준 가장 가까운 엣지와 투영점 찾기 (가상 시작 노드)
+    nearest_edge_start, proj_point_start = find_nearest_edge_point(graph, robot_x, robot_y)
+    if nearest_edge_start is None:
         rospy.logwarn("가까운 엣지를 찾지 못했습니다.")
         return
+    node_a_start, node_b_start = nearest_edge_start
 
-    node_a, node_b = nearest_edge
-
-    # 가상 시작 노드 생성
-    virtual_node_name = "virtual_start"
-    graph_mod[virtual_node_name] = {
-        'position': [proj_point[0], proj_point[1], robot_yaw],
-        'edges': [node_a, node_b]
+    virtual_start = "virtual_start"
+    graph_mod[virtual_start] = {
+        'position': [proj_point_start[0], proj_point_start[1], robot_yaw],
+        'edges': [node_a_start, node_b_start]
     }
-    # 양쪽 노드에 가상 노드 연결
-    graph_mod[node_a]['edges'].append(virtual_node_name)
-    graph_mod[node_b]['edges'].append(virtual_node_name)
+    graph_mod[node_a_start]['edges'].append(virtual_start)
+    graph_mod[node_b_start]['edges'].append(virtual_start)
 
-    # 목표 노드 찾기
+    # 2) 목표 위치 기준 가장 가까운 엣지와 투영점 찾기 (가상 목표 노드)
     goal_x = goal_position.position.x
     goal_y = goal_position.position.y
     goal_q = goal_position.orientation
     goal_yaw = tf.transformations.euler_from_quaternion([goal_q.x, goal_q.y, goal_q.z, goal_q.w])[2]
-    goal_node = find_nearest_node(graph, goal_x, goal_y)
 
-    # BFS 경로 탐색 시작점은 가상 노드
-    path_nodes = bfs_path(graph_mod, virtual_node_name, goal_node)
+    nearest_edge_goal, proj_point_goal = find_nearest_edge_point(graph, goal_x, goal_y)
+    if nearest_edge_goal is None:
+        rospy.logwarn("목표 위치에 가까운 엣지를 찾지 못했습니다.")
+        return
+    node_a_goal, node_b_goal = nearest_edge_goal
+
+    virtual_goal = "virtual_goal"
+    graph_mod[virtual_goal] = {
+        'position': [proj_point_goal[0], proj_point_goal[1], goal_yaw],
+        'edges': [node_a_goal, node_b_goal]
+    }
+    graph_mod[node_a_goal]['edges'].append(virtual_goal)
+    graph_mod[node_b_goal]['edges'].append(virtual_goal)
+
+    # 3) BFS 경로 탐색 (가상 시작 노드 → 가상 목표 노드)
+    path_nodes = bfs_path(graph_mod, virtual_start, virtual_goal)
+
     if path_nodes:
         full_path_nodes = []
 
-        # 1️⃣ 현재 위치 Pose 삽입 (가상 노드 위치 사용)
-        full_path_nodes.append(graph_mod[virtual_node_name])
+        # 현재 위치 → 가상 시작 노드(투영점) 보간
+        interpolated_start = interpolate_segment(
+            robot_x, robot_y, robot_yaw,
+            proj_point_start[0], proj_point_start[1], robot_yaw
+        )
+        full_path_nodes.extend(interpolated_start)
 
-        # 2️⃣ BFS 경로에 포함된 노드들 위치 삽입 (가상 노드 제외)
-        for node in path_nodes[1:]:
+        # 가상 시작 노드 추가
+        full_path_nodes.append(graph_mod[virtual_start])
+
+        # BFS 탐색 결과 중 첫 노드(virtual_start)와 마지막 노드(virtual_goal) 제외한 중간 노드들 추가
+        for node in path_nodes[1:-1]:
             full_path_nodes.append(graph[node])
 
-        # 3️⃣ 목표 위치 Pose 삽입
-        goal_pose = {'position': [goal_x, goal_y, goal_yaw]}
-        full_path_nodes.append(goal_pose)
+        # 가상 목표 노드 추가
+        full_path_nodes.append(graph_mod[virtual_goal])
+
+        # 가상 목표 노드 위치 → 실제 목표 위치 선형 보간 추가 (첫 점은 가상_goal과 겹치므로 제외)
+        interpolated_goal = interpolate_segment(
+            proj_point_goal[0], proj_point_goal[1], goal_yaw,
+            goal_x, goal_y, goal_yaw
+        )
+        full_path_nodes.extend(interpolated_goal[1:])
 
         publish_path_from_list(full_path_nodes)
     else:
-        rospy.logwarn("경로를 찾을 수 없습니다.")
+        rospy.logwarn("BFS 경로를 찾을 수 없습니다.")
 
 # ===========================
 # 🚀 메인
@@ -218,7 +256,7 @@ if __name__ == "__main__":
     tf_listener = tf.TransformListener()
 
     rospy.Subscriber("/move_base_simple/goal", PoseStamped, goal_callback)
-    rospy.Timer(rospy.Duration(0.1), timer_callback) #경로 갱신 주기
+    rospy.Timer(rospy.Duration(0.1), timer_callback)
 
     rospy.loginfo("RViz 2D Nav Goal 기다리는 중...")
 
