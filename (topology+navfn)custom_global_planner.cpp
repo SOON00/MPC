@@ -1,7 +1,5 @@
 #include <pluginlib/class_list_macros.h>
 #include <mpc_planner_rosnavigation/custom_global_planner.h>
-#include <navfn/navfn_ros.h>
-#include <geometry_msgs/PoseStamped.h>
 #include <cmath>
 #include <limits>
 
@@ -31,7 +29,25 @@ void CustomGlobalPlanner::pathCallback(const nav_msgs::Path::ConstPtr& msg) {
     external_plan_ = msg->poses;
 }
 
-// 장애물 확인 및 로봇까지의 최소 거리 계산
+geometry_msgs::PoseStamped CustomGlobalPlanner::findDistantWaypoint(const geometry_msgs::PoseStamped& robot_pose, double min_distance) {
+    double yaw = tf2::getYaw(robot_pose.pose.orientation);
+    double forward_x = std::cos(yaw);
+    double forward_y = std::sin(yaw);
+
+    for (const auto& wp : external_plan_) {
+        double dx = wp.pose.position.x - robot_pose.pose.position.x;
+        double dy = wp.pose.position.y - robot_pose.pose.position.y;
+        double dist = std::hypot(dx, dy);
+        double dot = dx * forward_x + dy * forward_y;
+
+        if (dist >= min_distance && dot > 0) {
+            return wp;
+        }
+    }
+
+    return external_plan_.back();
+}
+
 bool CustomGlobalPlanner::checkObstacleNearPath(const std::vector<geometry_msgs::PoseStamped>& path,
                                                 double obstacle_threshold,
                                                 double radius,
@@ -68,7 +84,7 @@ bool CustomGlobalPlanner::checkObstacleNearPath(const std::vector<geometry_msgs:
                     min_obstacle_distance = std::min(min_obstacle_distance, dist);
                     found_obstacle = true;
 
-                    ROS_INFO("Obstacle detected near path at (%d, %d), cost=%d", x, y, cost);
+                    //ROS_INFO("Obstacle detected near path at (%d, %d), cost=%d", x, y, cost);
                 }
             }
         }
@@ -110,29 +126,29 @@ bool CustomGlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start,
     double obstacle_threshold = 254;
     double obstacle_check_radius = 0.4;
     double fallback_distance = 4.0;
+    double navfn_target_distance = 2.5;
 
     double min_obstacle_distance;
     bool obstacle_exists = checkObstacleNearPath(external_plan_, obstacle_threshold, obstacle_check_radius, start, min_obstacle_distance);
 
-    ROS_INFO("Obstacle exists: %s", obstacle_exists ? "true" : "false");
-    ROS_INFO("Minimum obstacle distance to robot: %.3f meters", min_obstacle_distance);
-
     static bool using_navfn = false;
 
     if (obstacle_exists && min_obstacle_distance <= fallback_distance) {
-        ROS_WARN("Obstacle within %.2fm → switching to navfn", fallback_distance);
+        ROS_WARN("Obstacle within %.2fm. switching to navfn", fallback_distance);
         using_navfn = true;
-        return navfnFallback(start, goal, plan);
+
+        geometry_msgs::PoseStamped navfn_goal = findDistantWaypoint(start, navfn_target_distance);
+        return navfnFallback(start, navfn_goal, plan);
     }
 
     if (using_navfn && (!obstacle_exists || min_obstacle_distance > fallback_distance)) {
-        ROS_INFO("Obstacle cleared beyond %.2fm → reverting to topology path", fallback_distance);
+        ROS_INFO("Obstacle cleared. reverting to topology path");
         using_navfn = false;
     }
 
     // 보간 수행
     plan.clear();
-    double interpolation_resolution = 0.1;
+    double interpolation_resolution = 0.025;
 
     for (size_t i = 0; i < external_plan_.size() - 1; ++i) {
         const auto& p1 = external_plan_[i];
@@ -150,7 +166,6 @@ bool CustomGlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start,
             interp.header = p1.header;
             interp.pose.position.x = p1.pose.position.x + t * dx;
             interp.pose.position.y = p1.pose.position.y + t * dy;
-            interp.pose.position.z = 0.0;
             interp.pose.orientation = p1.pose.orientation;
 
             plan.push_back(interp);
@@ -162,19 +177,17 @@ bool CustomGlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start,
     // 인터폴레이션된 경로 기준 장애물 재확인
     double min_obstacle_distance_interp;
     bool obstacle_in_interpolated = checkObstacleNearPath(plan, obstacle_threshold, obstacle_check_radius, start, min_obstacle_distance_interp);
-
-    ROS_INFO("Obstacle in interpolated path: %s", obstacle_in_interpolated ? "true" : "false");
-    ROS_INFO("Minimum obstacle distance in interpolated path: %.3f meters", min_obstacle_distance_interp);
-
-    if (obstacle_in_interpolated && min_obstacle_distance_interp <= fallback_distance) {
-        ROS_WARN("Obstacle in interpolated path within %.2fm → fallback to navfn", fallback_distance);
-        using_navfn = true;
-        return navfnFallback(start, goal, plan);
+    
+    if (std::isfinite(min_obstacle_distance_interp)) {
+        ROS_INFO("Minimum obstacle distance in interpolated path: %.2f meters", min_obstacle_distance_interp);
     }
 
-    if (using_navfn && (!obstacle_in_interpolated || min_obstacle_distance_interp > fallback_distance)) {
-        ROS_INFO("Obstacle cleared beyond %.2fm → reverting to topology path", fallback_distance);
-        using_navfn = false;
+    if (obstacle_in_interpolated && min_obstacle_distance_interp <= fallback_distance) {
+        ROS_WARN("Obstacle in interpolated path. fallback to navfn");
+        using_navfn = true;
+
+        geometry_msgs::PoseStamped navfn_goal = findDistantWaypoint(start, navfn_target_distance);
+        return navfnFallback(start, navfn_goal, plan);
     }
 
     return true;
