@@ -5,9 +5,11 @@
 
 using namespace global_planner;
 
-CustomGlobalPlanner::CustomGlobalPlanner() : initialized_(false), costmap_ros_(nullptr) {}
+CustomGlobalPlanner::CustomGlobalPlanner()
+    : initialized_(false), costmap_ros_(nullptr), current_waypoint_idx_(0), waypoint_interval_(1.5) {}
 
-CustomGlobalPlanner::CustomGlobalPlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros) {
+CustomGlobalPlanner::CustomGlobalPlanner(std::string name, costmap_2d::Costmap2DROS* costmap_ros)
+    : initialized_(false), costmap_ros_(nullptr), current_waypoint_idx_(0), waypoint_interval_(1.5) {
     initialize(name, costmap_ros);
 }
 
@@ -17,7 +19,7 @@ void CustomGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS*
     costmap_ros_ = costmap_ros;
     ros::NodeHandle nh("~/" + name);
 
-    path_sub_ = nh.subscribe("/my_global_path", 1, &CustomGlobalPlanner::pathCallback, this);
+    path_sub_ = nh.subscribe("/topology_path", 1, &CustomGlobalPlanner::pathCallback, this);
 
     navfn_planner_.reset(new navfn::NavfnROS());
     navfn_planner_->initialize(name + "_navfn", costmap_ros_);
@@ -27,68 +29,25 @@ void CustomGlobalPlanner::initialize(std::string name, costmap_2d::Costmap2DROS*
 
 void CustomGlobalPlanner::pathCallback(const nav_msgs::Path::ConstPtr& msg) {
     external_plan_ = msg->poses;
-}
+    waypoints_.clear();
+    current_waypoint_idx_ = 0;
 
-geometry_msgs::PoseStamped CustomGlobalPlanner::findDistantWaypoint(const geometry_msgs::PoseStamped& robot_pose, double min_distance) {
-    double yaw = tf2::getYaw(robot_pose.pose.orientation);
-    double forward_x = std::cos(yaw);
-    double forward_y = std::sin(yaw);
+    if (external_plan_.empty()) return;
 
-    for (const auto& wp : external_plan_) {
-        double dx = wp.pose.position.x - robot_pose.pose.position.x;
-        double dy = wp.pose.position.y - robot_pose.pose.position.y;
-        double dist = std::hypot(dx, dy);
-        double dot = dx * forward_x + dy * forward_y;
+    waypoints_.push_back(external_plan_.front());
+    geometry_msgs::Pose last_wp = external_plan_.front().pose;
 
-        if (dist >= min_distance && dot > 0) {
-            return wp;
+    for (const auto& pose : external_plan_) {
+        double dx = pose.pose.position.x - last_wp.position.x;
+        double dy = pose.pose.position.y - last_wp.position.y;
+        if (std::hypot(dx, dy) >= waypoint_interval_) {
+            waypoints_.push_back(pose);
+            last_wp = pose.pose;
         }
     }
 
-    return external_plan_.back();
-}
-
-bool CustomGlobalPlanner::checkObstacleNearPath(const std::vector<geometry_msgs::PoseStamped>& path,
-                                                double obstacle_threshold,
-                                                double radius,
-                                                const geometry_msgs::PoseStamped& robot_pose,
-                                                double& min_obstacle_distance) {
-    if (!costmap_ros_) return false;
-    costmap_2d::Costmap2D* costmap = costmap_ros_->getCostmap();
-    double resolution = costmap->getResolution();
-    int radius_cells = static_cast<int>(radius / resolution);
-
-    min_obstacle_distance = std::numeric_limits<double>::infinity();
-    bool found_obstacle = false;
-
-    for (const auto& pose : path) {
-        unsigned int mx, my;
-        if (!costmap->worldToMap(pose.pose.position.x, pose.pose.position.y, mx, my))
-            continue;
-
-        int start_x = std::max(0, static_cast<int>(mx) - radius_cells);
-        int end_x = std::min(static_cast<int>(costmap->getSizeInCellsX()) - 1, static_cast<int>(mx) + radius_cells);
-        int start_y = std::max(0, static_cast<int>(my) - radius_cells);
-        int end_y = std::min(static_cast<int>(costmap->getSizeInCellsY()) - 1, static_cast<int>(my) + radius_cells);
-
-        for (int x = start_x; x <= end_x; ++x) {
-            for (int y = start_y; y <= end_y; ++y) {
-                unsigned char cost = costmap->getCost(x, y);
-                if (cost >= obstacle_threshold) {
-                    double wx, wy;
-                    costmap->mapToWorld(x, y, wx, wy);
-                    double dx = wx - robot_pose.pose.position.x;
-                    double dy = wy - robot_pose.pose.position.y;
-                    double dist = std::hypot(dx, dy);
-
-                    min_obstacle_distance = std::min(min_obstacle_distance, dist);
-                    found_obstacle = true;
-                }
-            }
-        }
-    }
-
-    return found_obstacle;
+    if (waypoints_.back().pose.position != external_plan_.back().pose.position)
+        waypoints_.push_back(external_plan_.back());
 }
 
 bool CustomGlobalPlanner::navfnFallback(const geometry_msgs::PoseStamped& start,
@@ -98,111 +57,84 @@ bool CustomGlobalPlanner::navfnFallback(const geometry_msgs::PoseStamped& start,
     bool success = navfn_planner_->makePlan(start, goal, navfn_plan);
     if (success && !navfn_plan.empty()) {
         plan = navfn_plan;
-        ROS_INFO("Navfn fallback plan generated");
         return true;
     }
-    ROS_WARN("Navfn fallback failed");
+    //ROS_WARN("Navfn fallback failed");
     return false;
+}
+
+geometry_msgs::PoseStamped CustomGlobalPlanner::shiftGoalIfNecessary(
+    const geometry_msgs::PoseStamped& goal) {
+
+    costmap_2d::Costmap2D* costmap = costmap_ros_->getCostmap();
+    unsigned int mx, my;
+
+    if (!costmap->worldToMap(goal.pose.position.x, goal.pose.position.y, mx, my)) {
+        ROS_WARN("Goal is out of costmap bounds.");
+        return goal;
+    }
+
+    unsigned char cost = costmap->getCost(mx, my);
+    if (cost < costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+        return goal;  // Safe
+    }
+
+    // Try previous waypoints for safe shift
+    //ROS_WARN("Goal is in high-cost area. Attempting to shift.");
+
+    for (int i = static_cast<int>(waypoints_.size()) - 2; i >= 0; --i) {
+        const auto& wp = waypoints_[i].pose.position;
+        if (costmap->worldToMap(wp.x, wp.y, mx, my) &&
+            costmap->getCost(mx, my) < costmap_2d::INSCRIBED_INFLATED_OBSTACLE) {
+            geometry_msgs::PoseStamped shifted = goal;
+            shifted.pose.position = wp;
+            //ROS_INFO("Shifted goal to previous safe waypoint.");
+            return shifted;
+        }
+    }
+
+    ROS_WARN("No safe shift target found. Keeping original goal.");
+    return goal;
 }
 
 bool CustomGlobalPlanner::makePlan(const geometry_msgs::PoseStamped& start,
                                    const geometry_msgs::PoseStamped& goal,
                                    std::vector<geometry_msgs::PoseStamped>& plan) {
-    if (!initialized_) {
-        ROS_ERROR("CustomGlobalPlanner has not been initialized.");
+    if (!initialized_ || waypoints_.empty()) {
+        ROS_WARN("Planner not initialized or no waypoints.");
         return false;
     }
 
     costmap_ros_->updateMap();
     ros::spinOnce();
 
-    if (external_plan_.empty()) {
-        ROS_WARN("External topology plan is empty.");
-        return false;
+    geometry_msgs::PoseStamped target_wp = waypoints_[current_waypoint_idx_];
+    double dx = target_wp.pose.position.x - start.pose.position.x;
+    double dy = target_wp.pose.position.y - start.pose.position.y;
+    double dist_to_waypoint = std::hypot(dx, dy);
+
+    if (dist_to_waypoint < 1.0 && current_waypoint_idx_ < waypoints_.size() - 1) {
+        current_waypoint_idx_++;
+        target_wp = waypoints_[current_waypoint_idx_];
+        ROS_INFO("Switching to next waypoint: %lu", current_waypoint_idx_);
     }
 
-    double obstacle_threshold = 254;
-    double obstacle_check_radius = 0.4;
-    double fallback_distance = 4.0;
-    double navfn_target_distance = 1.5;
-    double waypoint_reach_threshold = 1.55;  // waypoint 근접 거리 임계값 (m)
+    // Shift goal if necessary
+    geometry_msgs::PoseStamped safe_goal = shiftGoalIfNecessary(goal);
 
-    double min_obstacle_distance;
-    bool obstacle_exists = checkObstacleNearPath(external_plan_, obstacle_threshold, obstacle_check_radius, start, min_obstacle_distance);
+    std::vector<geometry_msgs::PoseStamped> partial_plan;
+    if (!navfnFallback(start, target_wp, partial_plan)) return false;
 
-    static bool using_navfn = false;
-
-    if (obstacle_exists && min_obstacle_distance <= fallback_distance) {
-        ROS_WARN("Obstacle within %.2fm. switching to navfn", fallback_distance);
-        using_navfn = true;
-
-        geometry_msgs::PoseStamped navfn_goal = findDistantWaypoint(start, navfn_target_distance);
-        return navfnFallback(start, navfn_goal, plan);
-    }
-
-    if (using_navfn && (!obstacle_exists || min_obstacle_distance > fallback_distance)) {
-        // waypoint까지 거리 계산
-        geometry_msgs::PoseStamped navfn_goal = findDistantWaypoint(start, navfn_target_distance);
-
-        double dx = navfn_goal.pose.position.x - start.pose.position.x;
-        double dy = navfn_goal.pose.position.y - start.pose.position.y;
-        double dist_to_waypoint = std::hypot(dx, dy);
-
-        if (dist_to_waypoint <= waypoint_reach_threshold) {
-            ROS_INFO("Reached near waypoint (%.2f m). reverting to topology path", dist_to_waypoint);
-            using_navfn = false;
-        } else {
-            ROS_INFO("Waypoint is %.2f m away, continue using navfn", dist_to_waypoint);
-            return navfnFallback(start, navfn_goal, plan);
-        }
-    }
-
-    // 보간 수행
     plan.clear();
-    double interpolation_resolution = 0.02;
+    plan.insert(plan.end(), partial_plan.begin(), partial_plan.end());
 
-    for (size_t i = 0; i < external_plan_.size() - 1; ++i) {
-        const auto& p1 = external_plan_[i];
-        const auto& p2 = external_plan_[i + 1];
-
-        double dx = p2.pose.position.x - p1.pose.position.x;
-        double dy = p2.pose.position.y - p1.pose.position.y;
-        double distance = std::hypot(dx, dy);
-        int steps = std::max(1, static_cast<int>(distance / interpolation_resolution));
-
-        for (int s = 0; s < steps; ++s) {
-            double t = static_cast<double>(s) / steps;
-
-            geometry_msgs::PoseStamped interp;
-            interp.header = p1.header;
-            interp.pose.position.x = p1.pose.position.x + t * dx;
-            interp.pose.position.y = p1.pose.position.y + t * dy;
-            interp.pose.orientation = p1.pose.orientation;
-
-            plan.push_back(interp);
-        }
-    }
-
-    plan.push_back(external_plan_.back());
-
-    // 인터폴레이션된 경로 기준 장애물 재확인
-    double min_obstacle_distance_interp;
-    bool obstacle_in_interpolated = checkObstacleNearPath(plan, obstacle_threshold, obstacle_check_radius, start, min_obstacle_distance_interp);
-    
-    if (std::isfinite(min_obstacle_distance_interp)) {
-        ROS_INFO("Minimum obstacle distance in interpolated path: %.2f meters", min_obstacle_distance_interp);
-    }
-
-    if (obstacle_in_interpolated && min_obstacle_distance_interp <= fallback_distance) {
-        ROS_WARN("Obstacle in interpolated path. fallback to navfn");
-        using_navfn = true;
-
-        geometry_msgs::PoseStamped navfn_goal = findDistantWaypoint(start, navfn_target_distance);
-        return navfnFallback(start, navfn_goal, plan);
+    if (!plan.empty()) {
+        plan.back() = safe_goal;  // Replace last point with shifted goal
+    } else {
+        plan.push_back(safe_goal);
     }
 
     return true;
 }
 
 PLUGINLIB_EXPORT_CLASS(global_planner::CustomGlobalPlanner, nav_core::BaseGlobalPlanner)
-
