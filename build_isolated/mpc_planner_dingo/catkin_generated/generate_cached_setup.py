@@ -1,0 +1,30 @@
+# -*- coding: utf-8 -*-
+from __future__ import print_function
+
+import os
+import stat
+import sys
+
+# find the import for catkin's python package - either from source space or from an installed underlay
+if os.path.exists(os.path.join('/opt/ros/noetic/share/catkin/cmake', 'catkinConfig.cmake.in')):
+    sys.path.insert(0, os.path.join('/opt/ros/noetic/share/catkin/cmake', '..', 'python'))
+try:
+    from catkin.environment_cache import generate_environment_script
+except ImportError:
+    # search for catkin package in all workspaces and prepend to path
+    for workspace in '/home/soon/workspace/devel_isolated/mpc_planner;/home/soon/workspace/devel_isolated/mpc_planner_modules;/home/soon/workspace/devel_isolated/mpc_planner_solver;/home/soon/workspace/devel_isolated/mpc_planner_util;/home/soon/workspace/devel_isolated/guidance_planner;/home/soon/workspace/devel_isolated/decomp_util;/home/soon/workspace/devel_isolated/ros_tools;/home/soon/workspace/devel_isolated/roadmap_msgs;/home/soon/workspace/devel_isolated/pedsim_original;/home/soon/workspace/devel_isolated/mpc_planner_types;/home/soon/workspace/devel_isolated/mpc_planner_msgs;/home/soon/workspace/devel_isolated/mobile_robot_state_publisher;/home/soon/workspace/devel_isolated/jackal_tutorials;/home/soon/workspace/devel_isolated/jackal_simulator;/home/soon/workspace/devel_isolated/jackal_navigation;/home/soon/workspace/devel_isolated/jackal_msgs;/home/soon/workspace/devel_isolated/jackal_gazebo;/home/soon/workspace/devel_isolated/jackal_description;/home/soon/workspace/devel_isolated/jackal_control;/home/soon/workspace/devel_isolated/asr_rapidxml;/home/soon/mpc_ws/devel_isolated/decomp_test_node;/home/soon/mpc_ws/devel_isolated/decomp_ros_utils;/home/soon/mpc_ws/devel_isolated/decomp_ros_msgs;/home/soon/mpc_ws/devel_isolated/catkin_simple;/home/soon/mpc_ws/devel;/home/soon/turtle_ws/devel;/home/soon/catkin_ws/devel;/opt/ros/noetic'.split(';'):
+        python_path = os.path.join(workspace, 'lib/python3/dist-packages')
+        if os.path.isdir(os.path.join(python_path, 'catkin')):
+            sys.path.insert(0, python_path)
+            break
+    from catkin.environment_cache import generate_environment_script
+
+code = generate_environment_script('/home/soon/workspace/devel_isolated/mpc_planner_dingo/env.sh')
+
+output_filename = '/home/soon/workspace/build_isolated/mpc_planner_dingo/catkin_generated/setup_cached.sh'
+with open(output_filename, 'w') as f:
+    # print('Generate script for cached setup "%s"' % output_filename)
+    f.write('\n'.join(code))
+
+mode = os.stat(output_filename).st_mode
+os.chmod(output_filename, mode | stat.S_IXUSR)

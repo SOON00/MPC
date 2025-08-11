@@ -1,0 +1,8 @@
+prefix=/home/soon/workspace/install_isolated
+
+Name: scenario_module
+Description: Description of scenario_module
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lscenario_module
+Requires: roscpp std_msgs ros_tools mpc_planner_msgs mpc_planner_types mpc_planner_solver mpc_planner_util

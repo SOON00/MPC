@@ -1,0 +1,14 @@
+\subsubsection usage Usage
+\verbatim
+<node name="mpc_planner_jackalsimulator" pkg="mpc_planner_jackalsimulator" type="mpc_planner_jackalsimulator">
+  <param name="acceleration" type="double" value="1.0" />
+  <param name="angular_velocity" type="double" value="1.0" />
+  <param name="velocity" type="double" value="1.0" />
+  <param name="reference_velocity" type="double" value="1.0" />
+  <param name="contour" type="double" value="1.0" />
+  <param name="lag" type="double" value="1.0" />
+  <param name="terminal_angle" type="double" value="1.0" />
+  <param name="terminal_contouring" type="double" value="1.0" />
+</node>
+\endverbatim
+

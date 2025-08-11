@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/soon/workspace/src/ros_tools/include/third_party/tkspline.h
+cstdio
+-
+cassert
+-
+vector
+-
+algorithm
+-
+
+/home/soon/workspace/src/ros_tools/src/third_party/tkspline.cpp
+cstdio
+-
+cassert
+-
+vector
+-
+algorithm
+-
+third_party/tkspline.h
+-
+

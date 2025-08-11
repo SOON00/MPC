@@ -1,0 +1,11 @@
+Symlinking /workspace/devel/share/mpc_planner_jackalsimulator/docs/jackalsimulatorConfig.wikidoc
+Symlinking /workspace/devel/share/mpc_planner_jackalsimulator/docs/jackalsimulatorConfig-usage.dox
+Symlinking /workspace/devel/share/mpc_planner_jackalsimulator/docs/jackalsimulatorConfig.dox
+Symlinking /workspace/devel/share/mpc_planner_jackalsimulator/cmake/mpc_planner_jackalsimulatorConfig-version.cmake
+Symlinking /workspace/devel/share/mpc_planner_jackalsimulator/cmake/mpc_planner_jackalsimulatorConfig.cmake
+Symlinking /workspace/devel/include/mpc_planner_jackalsimulator/jackalsimulatorConfig.h
+Symlinking /workspace/devel/lib/pkgconfig/mpc_planner_jackalsimulator.pc
+Symlinking /workspace/devel/lib/python3/dist-packages/mpc_planner_jackalsimulator/__init__.py
+Symlinking /workspace/devel/lib/python3/dist-packages/mpc_planner_jackalsimulator/cfg/__init__.py
+Symlinking /workspace/devel/lib/python3/dist-packages/mpc_planner_jackalsimulator/cfg/jackalsimulatorConfig.py
+Symlinking /workspace/devel/lib/mpc_planner_jackalsimulator/jackalsimulator_planner

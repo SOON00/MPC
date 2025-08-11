@@ -1,0 +1,8 @@
+# generated from catkin/cmake/template/pkg.context.pc.in
+CATKIN_PACKAGE_PREFIX = ""
+PROJECT_PKG_CONFIG_INCLUDE_DIRS = "/home/soon/workspace/src/scenario_module/include".split(';') if "/home/soon/workspace/src/scenario_module/include" != "" else []
+PROJECT_CATKIN_DEPENDS = "roscpp;std_msgs;ros_tools;mpc_planner_msgs;mpc_planner_types;mpc_planner_solver;mpc_planner_util".replace(';', ' ')
+PKG_CONFIG_LIBRARIES_WITH_PREFIX = "-lscenario_module".split(';') if "-lscenario_module" != "" else []
+PROJECT_NAME = "scenario_module"
+PROJECT_SPACE_DIR = "/home/soon/workspace/devel_isolated/scenario_module"
+PROJECT_VERSION = "0.0.0"

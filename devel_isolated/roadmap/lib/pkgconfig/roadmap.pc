@@ -1,0 +1,8 @@
+prefix=/home/soon/workspace/devel_isolated/roadmap
+
+Name: roadmap
+Description: Description of roadmap
+Version: 0.0.0
+Cflags: -I/home/soon/workspace/src/roadmap/roadmap/include -I/home/soon/workspace/src/roadmap/roadmap/include/roadmap -I/home/soon/workspace/src/roadmap/roadmap/include/spline
+Libs: -L${prefix}/lib -lroadmap
+Requires: geometry_msgs roslib roscpp std_msgs asr_rapidxml roadmap_msgs ros_tools

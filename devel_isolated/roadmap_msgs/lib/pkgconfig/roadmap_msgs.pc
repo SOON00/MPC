@@ -1,0 +1,8 @@
+prefix=/home/soon/workspace/devel_isolated/roadmap_msgs
+
+Name: roadmap_msgs
+Description: Description of roadmap_msgs
+Version: 0.0.0
+Cflags: -I/home/soon/workspace/devel_isolated/roadmap_msgs/include
+Libs: -L${prefix}/lib 
+Requires: std_msgs geometry_msgs
