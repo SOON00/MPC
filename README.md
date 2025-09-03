@@ -1,1 +1,1 @@
-MPC obstacle avoidance simulator
+**MPC obstacle avoidance simulator**
